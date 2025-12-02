@@ -79,7 +79,7 @@ pipeline {
                 }
                 
                 // Clean up dangling images
-                sh 'docker image prune -f || true'
+                sh 'docker system prune -a || true'
             }
         }
         success {
