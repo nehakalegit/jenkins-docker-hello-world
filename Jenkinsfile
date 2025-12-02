@@ -6,27 +6,34 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo 'Checking out source code...'
-                git ''
+                git 'https://github.com/atulkamble/jenkins-docker-hello-world.git'
                 // Add checkout steps here
             }
         }
 
-        stage('Build') {
+        stage('Build Docker Image') {
             steps {
                 echo 'Building...'
+                docker.build("atuljkamble/jenkins-docker-hello-world:${env.BUILD_ID}")
                 // Add build steps here
             }
         }
-        stage('Test') {
+
+        stage ('Run Docker Container') {
             steps {
-                echo 'Testing...'
-                // Add test steps here
+                echo 'Running...'
+                script {
+                    docker.image("atuljkamble/jenkins-docker-hello-world:${env.BUILD_ID}").run('-d -p 5000:5000')
+                }
+                // Add run steps here
             }
         }
-        stage('Deploy') {
+   
+        stage('Test Docker Container') {
             steps {
-                echo 'Deploying...'
-                // Add deploy steps here
+                echo 'Testing...'
+                sh 'curl http://localhost:5000'
+                // Add test steps here
             }
         }
     }
