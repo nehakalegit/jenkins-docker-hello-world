@@ -14,7 +14,7 @@ pipeline {
             steps {
                 echo 'Building Docker image...'
                 script {
-                    image = docker.build("atuljkamble/jenkins-docker-hello-world:${env.BUILD_ID}")
+                    image = docker.build("docker.io/atuljkamble/jenkins-docker-hello-world:${env.BUILD_ID}")
                 }
             }
         }
