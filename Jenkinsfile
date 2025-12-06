@@ -1,92 +1,70 @@
 pipeline {
-    agent any
+    agent any   // Run on any available Jenkins agent
+
+    environment {
+        // Name of the Docker image we will build
+        IMAGE_NAME = "atuljkamble/jenkins-docker-hello-world:${env.BUILD_ID}"
+
+        // Name of the container we will run
+        CONTAINER_NAME = "my-test-container-${env.BUILD_ID}"
+    }
 
     stages {
 
-        stage('Prepare') {
+        stage('1. Check Project Files') {
             steps {
-                echo 'Preparing build environment...'
-                sh 'ls -la'
-                sh 'cat app.py'
-                echo "Building image: atuljkamble/jenkins-docker-hello-world:${env.BUILD_ID}"
+                echo "Listing the files in the project folder..."
+                sh "ls -la"   // Show all files so we know what's here
             }
         }
 
-        stage('Build Docker Image') {
+        stage('2. Build Docker Image') {
             steps {
-                echo 'Building Docker image...'
-                script {
-                    def image = docker.build("docker.io/atuljkamble/jenkins-docker-hello-world:${env.BUILD_ID}")
-                    env.IMAGE_NAME = "atuljkamble/jenkins-docker-hello-world:${env.BUILD_ID}"
-                }
+                echo "Building Docker image: ${env.IMAGE_NAME}"
+                sh "docker build -t ${env.IMAGE_NAME} ."  
+                // This builds an image using the Dockerfile in this folder
             }
         }
 
-        stage('Run Docker Container') {
+        stage('3. Run the App in Docker') {
             steps {
-                echo 'Running container...'
-                script {
-                    // Stop any existing containers on port 5000
-                    sh '''
-                        EXISTING_CONTAINERS=$(docker ps -q --filter "publish=5000" || true)
-                        if [ ! -z "$EXISTING_CONTAINERS" ]; then
-                            docker stop $EXISTING_CONTAINERS || true
-                        fi
-                    '''
-                    
-                    def containerName = "jenkins-test-${env.BUILD_ID}"
-                    env.CONTAINER_NAME = containerName
-                    
-                    def container = docker.image(env.IMAGE_NAME)
-                                      .run("-d -p 5000:5000 --name ${containerName}")
-                }
+                echo "Running the app inside a Docker container..."
+
+                // Stop and remove old container (if exists) so it doesn't conflict
+                sh "docker stop ${env.CONTAINER_NAME} || true"
+                sh "docker rm ${env.CONTAINER_NAME} || true"
+
+                // Start a new container on port 5000
+                sh "docker run -d -p 5000:5000 --name ${env.CONTAINER_NAME} ${env.IMAGE_NAME}"
+                // -d = run in background
+                // -p = map port 5000 on container to port 5000 on host
             }
         }
-   
-        stage('Test Docker Container') {
+
+        stage('4. Test the App') {
             steps {
-                echo 'Testing Docker container...'
-                script {
-                    // Wait for container to be ready
-                    sh 'sleep 10'
-                    
-                    // Check container status
-                    sh "docker ps | grep ${env.CONTAINER_NAME} || (echo 'Container not running!' && exit 1)"
-                    
-                    // Test endpoints
-                    sh '''
-                        echo "Testing root endpoint..."
-                        curl -f -s http://localhost:5000/ || exit 1
-                        
-                        echo "Testing greet endpoint..."
-                        curl -f -s "http://localhost:5000/greet?name=Jenkins" || exit 1
-                        
-                        echo "All tests passed!"
-                    '''
-                }
+                echo "Testing the app to check if it works..."
+
+                sh "sleep 5"  // Give the app a few seconds to start
+
+                // Test the homepage "/"
+                sh "curl http://localhost:5000/"
+
+                // Test the greet endpoint
+                sh "curl http://localhost:5000/greet?name=Jenkins"
             }
         }
     }
 
     post {
         always {
-            echo 'Cleaning up...'
-            script {
-                // Stop and remove test container
-                if (env.CONTAINER_NAME) {
-                    sh "docker stop ${env.CONTAINER_NAME} || true"
-                    sh "docker rm ${env.CONTAINER_NAME} || true"
-                }
-                
-                // Clean up dangling images
-                sh 'docker system prune -a || true'
-            }
-        }
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed.'
+            echo "Cleaning up Docker container..."
+
+            // Stop the container when pipeline is finished
+            sh "docker stop ${env.CONTAINER_NAME} || true"
+
+            // Remove the container
+            sh "docker rm ${env.CONTAINER_NAME} || true"
         }
     }
 }
