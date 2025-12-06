@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Name of the Docker image we will build
-        IMAGE_NAME = "atuljkamble/jenkins-docker-hello-world:${env.BUILD_ID}"
+        IMAGE_NAME = "nehakaledocker/jenkins-docker-hello-world:${env.BUILD_ID}"
 
         // Name of the container we will run
         CONTAINER_NAME = "my-test-container-${env.BUILD_ID}"
